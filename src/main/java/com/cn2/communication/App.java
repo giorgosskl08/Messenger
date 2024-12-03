@@ -2,6 +2,7 @@ package com.cn2.communication;
 
 import java.io.*;
 import java.net.*;
+import javax.sound.sampled.*;
 
 import javax.swing.JFrame;
 import javax.swing.JTextField;
@@ -28,9 +29,16 @@ public class App extends Frame implements WindowListener, ActionListener {
 	static JTextField meesageTextField;		  
 	public static Color gray;				
 	final static String newline="\n";		
-	static JButton callButton;				
+	static JButton callButton;	
+	static JButton endButton;
 	
-	// TODO: Please define and initialize your variables here...
+    // Threads for call handling
+    private Thread captureThread;
+    private Thread receiveThread;
+    private TargetDataLine getsound;
+    private SourceDataLine hearsound;
+    private DatagramSocket call_socket;
+
 	
 	/**
 	 * Construct the app's frame and initialize important parameters
@@ -61,7 +69,8 @@ public class App extends Frame implements WindowListener, ActionListener {
 		
 		//Setting up the buttons
 		sendButton = new JButton("Send");			
-		callButton = new JButton("Call");			
+		callButton = new JButton("Call");
+		endButton = new JButton("End Call");
 						
 		/*
 		 * 2. Adding the components to the GUI
@@ -70,12 +79,14 @@ public class App extends Frame implements WindowListener, ActionListener {
 		add(inputTextField);
 		add(sendButton);
 		add(callButton);
+		add(endButton);
 		
 		/*
 		 * 3. Linking the buttons to the ActionListener
 		 */
 		sendButton.addActionListener(this);			
 		callButton.addActionListener(this);	
+		endButton.addActionListener(this);
 
 		
 	}
@@ -96,8 +107,36 @@ public class App extends Frame implements WindowListener, ActionListener {
 		/*
 		 * 2. 
 		 */
-		do{		
-			// TODO: Your code goes here...
+		do{	
+			//Receive messages
+			new Thread(new Runnable() {
+		        public void run() {
+		            try {
+		                // Create a DatagramSocket to receive the data
+		                DatagramSocket receive_socket = new DatagramSocket(5002);
+
+		                // Buffer to hold incoming data
+		                byte[] buffer = new byte[1024];
+
+		                while (true) {
+		                    // Create a DatagramPacket to receive data
+		                	
+		                    DatagramPacket new_packet = new DatagramPacket(buffer, buffer.length);
+
+		                    // Receive the packet
+		                    receive_socket.receive(new_packet);
+
+		                    // Extract the message from the packet
+		                    String message = new String(new_packet.getData(), 0, new_packet.getLength());
+
+		                    // Display the received message in the textArea
+		                    textArea.append("Received: " + message + newline);
+		                }
+		            } catch (Exception ex) {
+		                ex.printStackTrace();
+		            }
+		        }
+		    }).start();
 		}while(true);
 	}
 	
@@ -117,17 +156,120 @@ public class App extends Frame implements WindowListener, ActionListener {
 			
 			// The "Send" button was clicked
 			
-			// TODO: Your code goes here...
+			try {
+	            // Create a DatagramSocket to send the data
+	            DatagramSocket send_socket = new DatagramSocket();
+
+	            // Get the message from the inputTextField
+	            String message = inputTextField.getText();
+
+	            // Convert the message to bytes
+	            byte[] buffer = message.getBytes();
+
+	            // Create a DatagramPacket with the message, localhost, and a port number
+	            InetAddress address = InetAddress.getByName("127.0.0.1");
+	            int port = 5002;
+	            DatagramPacket send_packet = new DatagramPacket(buffer, buffer.length, address, port);
+
+	            // Send the packet through the socket
+	            send_socket.send(send_packet);
+
+	            // Display the sent message in the textArea
+	            textArea.append("Sent: " + message + newline);
+
+	            // Clear the inputTextField
+	            inputTextField.setText("");
+
+	            // Close the socket
+	            send_socket.close();
+	        } catch (Exception ex) {
+	            ex.printStackTrace();
+	        }
 		
 			
 		}else if(e.getSource() == callButton){
 			
 			// The "Call" button was clicked
 			
-			// TODO: Your code goes here...
+			try {
+			    call_socket = new DatagramSocket();
+			    AudioFormat audio_format = new AudioFormat(8000, 16, 1, true, true); 
+			    DataLine.Info audio_info = new DataLine.Info(TargetDataLine.class, audio_format);
+			    DataLine.Info source_info = new DataLine.Info(SourceDataLine.class, audio_format);
+
+			    getsound = (TargetDataLine) AudioSystem.getLine(audio_info);
+			    getsound.open(audio_format);
+			    getsound.start();
+
+			    hearsound = (SourceDataLine) AudioSystem.getLine(source_info);
+			    hearsound.open(audio_format);
+			    hearsound.start();
+
+			    captureThread = new Thread(() -> {
+			        try {
+			            byte[] audio_buffer = new byte[4096]; 
+			            InetAddress call_address = InetAddress.getByName("127.0.0.1"); 
+			            int port = 5001;
+
+			            while (!Thread.currentThread().isInterrupted()) {
+			                int bytes_read = getsound.read(audio_buffer, 0, audio_buffer.length);
+			                DatagramPacket call_packet = new DatagramPacket(audio_buffer, bytes_read, call_address, port);
+			                call_socket.send(call_packet);
+			            }
+			        } catch (Exception ex) {
+			            ex.printStackTrace();
+			        }
+			    });
+
+			    receiveThread = new Thread(() -> {
+			        try {
+			            DatagramSocket receive_socket = new DatagramSocket(5001); // Ensure it's bound to the correct port
+			            byte[] receive_buffer = new byte[4096];
+			            DatagramPacket receive_packet = new DatagramPacket(receive_buffer, receive_buffer.length);
+
+			            while (!Thread.currentThread().isInterrupted()) {
+			                receive_socket.receive(receive_packet);
+			                hearsound.write(receive_packet.getData(), 0, receive_packet.getLength());
+			            }
+			        } catch (Exception ex) {
+			            ex.printStackTrace();
+			        }
+			    });
+
+
+			    captureThread.start();
+			    receiveThread.start();
+
+			} catch (LineUnavailableException | IOException ex) {
+			    ex.printStackTrace();
+			}
 			
-			
-		}
+		} else if (e.getSource() == endButton) {
+	            // The "End Call" button was clicked
+
+	            try {
+	                if (captureThread != null && captureThread.isAlive()) {
+	                    captureThread.interrupt();
+	                }
+	                if (receiveThread != null && receiveThread.isAlive()) {
+	                    receiveThread.interrupt();
+	                }
+	                if (getsound != null) {
+	                    getsound.stop();
+	                    getsound.close();
+	                }
+	                if (hearsound != null) {
+	                    hearsound.stop();
+	                    hearsound.close();
+	                }
+	                if (call_socket != null && !call_socket.isClosed()) {
+	                    call_socket.close();
+	                }
+	                textArea.append("Call ended" + newline);
+	            } catch (Exception ex) {
+	                ex.printStackTrace();
+	            }
+	        }
 			
 
 	}
