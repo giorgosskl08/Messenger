@@ -38,6 +38,7 @@ public class App extends Frame implements WindowListener, ActionListener {
     private TargetDataLine getsound;
     private SourceDataLine hearsound;
     private DatagramSocket call_socket;
+    private Socket new_socket;
 
 	
 	/**
@@ -111,29 +112,22 @@ public class App extends Frame implements WindowListener, ActionListener {
 			//Receive messages
 			new Thread(new Runnable() {
 		        public void run() {
-		            try {
-		                // Create a DatagramSocket to receive the data
-		                DatagramSocket receive_socket = new DatagramSocket(5002);
-
-		                // Buffer to hold incoming data
-		                byte[] buffer = new byte[1024];
-
+		        	try (ServerSocket serverSocket = new ServerSocket(5002)) {
+		                textArea.append("Server is listening on port 5002...\n");
 		                while (true) {
-		                    // Create a DatagramPacket to receive data
-		                	
-		                    DatagramPacket new_packet = new DatagramPacket(buffer, buffer.length);
+		                    Socket receiveSocket = serverSocket.accept();
+		                    BufferedReader reader = new BufferedReader(new InputStreamReader(receiveSocket.getInputStream()));
 
-		                    // Receive the packet
-		                    receive_socket.receive(new_packet);
+		                    String receivedMessage;
+		                    while ((receivedMessage = reader.readLine()) != null) {
+		                        textArea.append("Received: " + receivedMessage + newline);
+		                    }
 
-		                    // Extract the message from the packet
-		                    String message = new String(new_packet.getData(), 0, new_packet.getLength());
-
-		                    // Display the received message in the textArea
-		                    textArea.append("Received: " + message + newline);
+		                    receiveSocket.close();
 		                }
-		            } catch (Exception ex) {
+		            } catch (IOException ex) {
 		                ex.printStackTrace();
+		                textArea.append("Error: Unable to receive messages.\n");
 		            }
 		        }
 		    }).start();
@@ -154,38 +148,22 @@ public class App extends Frame implements WindowListener, ActionListener {
 		 */
 		if (e.getSource() == sendButton){
 			
-			// The "Send" button was clicked
-			
-			try {
-	            // Create a DatagramSocket to send the data
-	            DatagramSocket send_socket = new DatagramSocket();
+			String serverAddress = "127.0.0.1";
+		    int port = 5005;
 
-	            // Get the message from the inputTextField
-	            String message = inputTextField.getText();
+		    try (Socket socket = new Socket(serverAddress, port);
+		            OutputStream out = socket.getOutputStream();
+		            PrintWriter writer = new PrintWriter(out, true)) {
 
-	            // Convert the message to bytes
-	            byte[] buffer = message.getBytes();
+		           String message = inputTextField.getText();
+		           textArea.append("Sent: " + message + newline);
 
-	            // Create a DatagramPacket with the message, localhost, and a port number
-	            InetAddress address = InetAddress.getByName("127.0.0.1");
-	            int port = 5002;
-	            DatagramPacket send_packet = new DatagramPacket(buffer, buffer.length, address, port);
+		           writer.println(message); // Send the message over the TCP connection
 
-	            // Send the packet through the socket
-	            send_socket.send(send_packet);
-
-	            // Display the sent message in the textArea
-	            textArea.append("Sent: " + message + newline);
-
-	            // Clear the inputTextField
-	            inputTextField.setText("");
-
-	            // Close the socket
-	            send_socket.close();
-	        } catch (Exception ex) {
-	            ex.printStackTrace();
-	        }
-		
+		       } catch (IOException ex) {
+		           ex.printStackTrace();
+		           textArea.append("Error: Unable to send message\n");
+		       }
 			
 		}else if(e.getSource() == callButton){
 			
