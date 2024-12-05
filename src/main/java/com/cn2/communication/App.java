@@ -111,8 +111,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 		 */
 		do{	
 			//Receive messages constantly in the main method
-			new Thread(new Runnable() {
-		        public void run() {
+			new Thread(() -> {
 		            try {
 		                // Create a DatagramSocket to receive the data
 		                DatagramSocket receive_socket = new DatagramSocket(5002);
@@ -133,11 +132,12 @@ public class App extends Frame implements WindowListener, ActionListener {
 
 		                    // Display the received message in the textArea
 		                    textArea.append("Received: " + message + newline);
+		                    
+		                    receive_socket.close();
 		                }
 		            } catch (Exception ex) {
 		                ex.printStackTrace();
 		            }
-		        }
 		    }).start();
 		}while(true);
 	}
