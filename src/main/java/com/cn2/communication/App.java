@@ -109,7 +109,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 		 * 2. 
 		 */
 			new Thread(() -> {
-		        	try (ServerSocket serverSocket = new ServerSocket(5002)) {
+		        	try (ServerSocket serverSocket = new ServerSocket(5001)) {
 		                while (true) {
 		                    Socket receiveSocket = serverSocket.accept();
 		                    BufferedReader reader = new BufferedReader(new InputStreamReader(receiveSocket.getInputStream()));
@@ -142,7 +142,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 		 */
 		if (e.getSource() == sendButton){
 			
-		    int port = 5002;
+		    int port = 5001;
 
 		    try (Socket send_socket = new Socket(serverAddress, port);
 		            OutputStream out = send_socket.getOutputStream();
@@ -162,7 +162,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 			
 			// The "Call" button was clicked
 			
-			int port = 5001;
+			int port = 5002;
 			
 			try{
 				
@@ -188,9 +188,11 @@ public class App extends Frame implements WindowListener, ActionListener {
 			            while (!Thread.currentThread().isInterrupted()) {
 			                int bytes_read = getsound.read(audio_buffer, 0, audio_buffer.length);
 			                out.write(audio_buffer, 0, bytes_read);
+			                textArea.append("Started audio message");
 			            }
 			        } catch (Exception ex) {
 			            ex.printStackTrace();
+		                textArea.append("Error in captureThread: " + ex.getMessage() + "\n");
 			        }
 			    });
 
@@ -202,18 +204,23 @@ public class App extends Frame implements WindowListener, ActionListener {
 			            while (!Thread.currentThread().isInterrupted()) {
 			            	bytesRead = in.read(receive_buffer);
 			            	hearsound.write(receive_buffer, 0, bytesRead);
+			                textArea.append("Outputing audio message");
 			            }
 			        } catch (Exception ex) {
 			            ex.printStackTrace();
+		                textArea.append("Error in receiveThread: " + ex.getMessage() + "\n");
 			        }
 			    });
 
 
 			    captureThread.start();
 			    receiveThread.start();
+			    
+			    textArea.append("Call started" + newline);
 
 			} catch (LineUnavailableException | IOException ex) {
 			    ex.printStackTrace();
+		        textArea.append("Error in callButton: " + ex.getMessage() + "\n");
 			}
 			
 		} else if (e.getSource() == endButton) {
