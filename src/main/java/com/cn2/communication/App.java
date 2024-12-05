@@ -190,82 +190,86 @@ public class App extends Frame implements WindowListener, ActionListener {
 		}else if(e.getSource() == callButton){
 			
 			// The "Call" button was clicked
-			
 			try {
-			    call_socket = new DatagramSocket();
-			    AudioFormat audio_format = new AudioFormat(8000, 16, 1, true, true); 
-			    DataLine.Info audio_info = new DataLine.Info(TargetDataLine.class, audio_format);
-			    DataLine.Info source_info = new DataLine.Info(SourceDataLine.class, audio_format);
+		        if (call_socket == null || call_socket.isClosed()) {
+		            call_socket = new DatagramSocket();
+		        }
 
-			    getsound = (TargetDataLine) AudioSystem.getLine(audio_info);
-			    getsound.open(audio_format);
-			    getsound.start();
+		        AudioFormat audio_format = new AudioFormat(8000, 16, 1, true, true);
+		        DataLine.Info audio_info = new DataLine.Info(TargetDataLine.class, audio_format);
+		        DataLine.Info source_info = new DataLine.Info(SourceDataLine.class, audio_format);
 
-			    hearsound = (SourceDataLine) AudioSystem.getLine(source_info);
-			    hearsound.open(audio_format);
-			    hearsound.start();
+		        getsound = (TargetDataLine) AudioSystem.getLine(audio_info);
+		        getsound.open(audio_format);
+		        getsound.start();
 
-			    captureThread = new Thread(() -> {
-			        try {
-			            byte[] audio_buffer = new byte[4096]; 
-			            InetAddress call_address = InetAddress.getByName("127.0.0.1"); 
-			            int port = 5001;
+		        hearsound = (SourceDataLine) AudioSystem.getLine(source_info);
+		        hearsound.open(audio_format);
+		        hearsound.start();
 
-			            while (!Thread.currentThread().isInterrupted()) {
-			                int bytes_read = getsound.read(audio_buffer, 0, audio_buffer.length);
-			                DatagramPacket call_packet = new DatagramPacket(audio_buffer, bytes_read, call_address, port);
-			                call_socket.send(call_packet);
-			            }
-			        } catch (Exception ex) {
-			            ex.printStackTrace();
-			        }
-			    });
+		        captureThread = new Thread(() -> {
+		            try {
+		                byte[] audio_buffer = new byte[4096];
+		                InetAddress call_address = InetAddress.getByName("127.0.0.1");
+		                int port = 5001;
 
-			    receiveThread = new Thread(() -> {
-			        try {
-			            DatagramSocket receive_socket = new DatagramSocket(5001); // Ensure it's bound to the correct port
-			            byte[] receive_buffer = new byte[4096];
-			            DatagramPacket receive_packet = new DatagramPacket(receive_buffer, receive_buffer.length);
+		                while (!Thread.currentThread().isInterrupted()) {
+		                    int bytes_read = getsound.read(audio_buffer, 0, audio_buffer.length);
+		                    DatagramPacket call_packet = new DatagramPacket(audio_buffer, bytes_read, call_address, port);
+		                    call_socket.send(call_packet);
+		                }
+		            } catch (Exception ex) {
+		                ex.printStackTrace();
+		            }
+		        });
 
-			            while (!Thread.currentThread().isInterrupted()) {
-			                receive_socket.receive(receive_packet);
-			                hearsound.write(receive_packet.getData(), 0, receive_packet.getLength());
-			            }
-			        } catch (Exception ex) {
-			            ex.printStackTrace();
-			        }
-			    });
+		        receiveThread = new Thread(() -> {
+		            try {
+		                DatagramSocket receive_socket = new DatagramSocket(5001);
+		                byte[] receive_buffer = new byte[4096];
+		                DatagramPacket receive_packet = new DatagramPacket(receive_buffer, receive_buffer.length);
 
+		                while (!Thread.currentThread().isInterrupted()) {
+		                    receive_socket.receive(receive_packet);
+		                    hearsound.write(receive_packet.getData(), 0, receive_packet.getLength());
+		                }
+		                receive_socket.close();
+		            } catch (Exception ex) {
+		                ex.printStackTrace();
+		            }
+		        });
 
-			    captureThread.start();
-			    receiveThread.start();
+		        captureThread.start();
+		        receiveThread.start();
 
-			} catch (LineUnavailableException | IOException ex) {
-			    ex.printStackTrace();
-			}
+		        textArea.append("Call started" + newline);
+
+		    } catch (LineUnavailableException | IOException ex) {
+		        ex.printStackTrace();
+		    }
 			
 		} else if (e.getSource() == endButton) {
 	            // The "End Call" button was clicked
 
 	            try {
-	                if (captureThread != null && captureThread.isAlive()) {
-	                    captureThread.interrupt();
-	                }
-	                if (receiveThread != null && receiveThread.isAlive()) {
-	                    receiveThread.interrupt();
-	                }
-	                if (getsound != null) {
-	                    getsound.stop();
-	                    getsound.close();
-	                }
-	                if (hearsound != null) {
-	                    hearsound.stop();
-	                    hearsound.close();
-	                }
-	                if (call_socket != null && !call_socket.isClosed()) {
-	                    call_socket.close();
-	                }
-	                textArea.append("Call ended" + newline);
+	            	if (captureThread != null && captureThread.isAlive()) {
+	            	    captureThread.interrupt();
+	            	}
+	            	if (receiveThread != null && receiveThread.isAlive()) {
+	            	    receiveThread.interrupt();
+	            	}
+	            	if (getsound != null) {
+	            	    getsound.stop();
+	            	    getsound.close();
+	            	}
+	            	if (hearsound != null) {
+	            	    hearsound.stop();
+	            	    hearsound.close();
+	            	}
+	            	if (call_socket != null && !call_socket.isClosed()) {
+	            	    call_socket.close();
+	            	}
+	            	textArea.append("Call ended" + newline);
 	            } catch (Exception ex) {
 	                ex.printStackTrace();
 	            }
