@@ -35,11 +35,11 @@ public class App extends Frame implements WindowListener, ActionListener {
     // Threads for call handling
     private Thread captureThread;
     private Thread receiveThread;
+    private Socket call_socket;
+    private OutputStream out;
+    private PrintWriter writer;
     private TargetDataLine getsound;
     private SourceDataLine hearsound;
-    private DatagramSocket call_socket;
-    private Socket new_socket;
-
 	
 	/**
 	 * Construct the app's frame and initialize important parameters
@@ -110,7 +110,6 @@ public class App extends Frame implements WindowListener, ActionListener {
 		 */
 			new Thread(() -> {
 		        	try (ServerSocket serverSocket = new ServerSocket(5002)) {
-		                textArea.append("Server is listening on port 5002...\n");
 		                while (true) {
 		                    Socket receiveSocket = serverSocket.accept();
 		                    BufferedReader reader = new BufferedReader(new InputStreamReader(receiveSocket.getInputStream()));
@@ -136,18 +135,17 @@ public class App extends Frame implements WindowListener, ActionListener {
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		
-	
+		String serverAddress = "127.0.0.1";
 
 		/*
 		 * Check which button was clicked.
 		 */
 		if (e.getSource() == sendButton){
 			
-			String serverAddress = "127.0.0.1";
 		    int port = 5002;
 
-		    try (Socket socket = new Socket(serverAddress, port);
-		            OutputStream out = socket.getOutputStream();
+		    try (Socket send_socket = new Socket(serverAddress, port);
+		            OutputStream out = send_socket.getOutputStream();
 		            PrintWriter writer = new PrintWriter(out, true)) {
 
 		           String message = inputTextField.getText();
@@ -164,11 +162,13 @@ public class App extends Frame implements WindowListener, ActionListener {
 			
 			// The "Call" button was clicked
 			
-			try {
+			int port = 5001;
+			
+			try{
 				
-				if (call_socket == null || call_socket.isClosed()) {
-				    call_socket = new DatagramSocket(); // Create a new DatagramSocket for sending audio packets
-				}
+				call_socket = new Socket (serverAddress, port);
+				out = call_socket.getOutputStream();
+				writer = new PrintWriter(out, true);
 				
 			    AudioFormat audio_format = new AudioFormat(8000, 16, 1, true, true); 
 			    DataLine.Info audio_info = new DataLine.Info(TargetDataLine.class, audio_format);
@@ -185,13 +185,9 @@ public class App extends Frame implements WindowListener, ActionListener {
 			    captureThread = new Thread(() -> {
 			        try {
 			            byte[] audio_buffer = new byte[4096]; 
-			            InetAddress call_address = InetAddress.getByName("127.0.0.1"); 
-			            int port = 5001;
-
 			            while (!Thread.currentThread().isInterrupted()) {
 			                int bytes_read = getsound.read(audio_buffer, 0, audio_buffer.length);
-			                DatagramPacket call_packet = new DatagramPacket(audio_buffer, bytes_read, call_address, port);
-			                call_socket.send(call_packet);
+			                out.write(audio_buffer, 0, bytes_read);
 			            }
 			        } catch (Exception ex) {
 			            ex.printStackTrace();
@@ -200,13 +196,12 @@ public class App extends Frame implements WindowListener, ActionListener {
 
 			    receiveThread = new Thread(() -> {
 			        try {
-			            DatagramSocket receive_socket = new DatagramSocket(5001); // Ensure it's bound to the correct port
+			        	InputStream in = call_socket.getInputStream();
 			            byte[] receive_buffer = new byte[4096];
-			            DatagramPacket receive_packet = new DatagramPacket(receive_buffer, receive_buffer.length);
-
+			            int bytesRead;
 			            while (!Thread.currentThread().isInterrupted()) {
-			                receive_socket.receive(receive_packet);
-			                hearsound.write(receive_packet.getData(), 0, receive_packet.getLength());
+			            	bytesRead = in.read(receive_buffer);
+			            	hearsound.write(receive_buffer, 0, bytesRead);
 			            }
 			        } catch (Exception ex) {
 			            ex.printStackTrace();
