@@ -108,10 +108,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 		/*
 		 * 2. 
 		 */
-		do{	
-			//Receive messages
-			new Thread(new Runnable() {
-		        public void run() {
+			new Thread(() -> {
 		        	try (ServerSocket serverSocket = new ServerSocket(5002)) {
 		                textArea.append("Server is listening on port 5002...\n");
 		                while (true) {
@@ -129,9 +126,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 		                ex.printStackTrace();
 		                textArea.append("Error: Unable to receive messages.\n");
 		            }
-		        }
 		    }).start();
-		}while(true);
 	}
 	
 	/**
@@ -149,7 +144,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 		if (e.getSource() == sendButton){
 			
 			String serverAddress = "127.0.0.1";
-		    int port = 5005;
+		    int port = 5002;
 
 		    try (Socket socket = new Socket(serverAddress, port);
 		            OutputStream out = socket.getOutputStream();
@@ -170,7 +165,11 @@ public class App extends Frame implements WindowListener, ActionListener {
 			// The "Call" button was clicked
 			
 			try {
-			    call_socket = new DatagramSocket();
+				
+				if (call_socket == null || call_socket.isClosed()) {
+				    call_socket = new DatagramSocket(); // Create a new DatagramSocket for sending audio packets
+				}
+				
 			    AudioFormat audio_format = new AudioFormat(8000, 16, 1, true, true); 
 			    DataLine.Info audio_info = new DataLine.Info(TargetDataLine.class, audio_format);
 			    DataLine.Info source_info = new DataLine.Info(SourceDataLine.class, audio_format);
@@ -226,25 +225,31 @@ public class App extends Frame implements WindowListener, ActionListener {
 	            // The "End Call" button was clicked
 
 	            try {
-	                if (captureThread != null && captureThread.isAlive()) {
-	                    captureThread.interrupt();
-	                }
-	                if (receiveThread != null && receiveThread.isAlive()) {
-	                    receiveThread.interrupt();
-	                }
-	                if (getsound != null) {
-	                    getsound.stop();
-	                    getsound.close();
-	                }
-	                if (hearsound != null) {
-	                    hearsound.stop();
-	                    hearsound.close();
-	                }
-	                if (call_socket != null && !call_socket.isClosed()) {
-	                    call_socket.close();
-	                }
-	                textArea.append("Call ended" + newline);
-	            } catch (Exception ex) {
+	            	// Stop the capture thread if it is running
+			        if (captureThread != null && captureThread.isAlive()) {
+			            captureThread.interrupt();
+			        }
+			        // Stop the receive thread if it is running
+			        if (receiveThread != null && receiveThread.isAlive()) {
+			            receiveThread.interrupt();
+			        }
+			        // Stop and close the audio capture line
+			        if (getsound != null) {
+			            getsound.stop();
+			            getsound.close(); 
+			        }
+			        // Stop and close the audio playback line
+			        if (hearsound != null) {
+			            hearsound.stop();
+			            hearsound.close(); 
+			        }
+			        // Close the call socket if it is open
+			        if (call_socket != null && !call_socket.isClosed()) {
+			            call_socket.close();
+			        }
+			        textArea.append("Call ended" + newline); // Log the call end in the user interface
+
+			    } catch (Exception ex) {
 	                ex.printStackTrace();
 	            }
 	        }
