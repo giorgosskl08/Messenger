@@ -32,7 +32,9 @@ public class App extends Frame implements WindowListener, ActionListener {
 	static JButton callButton;	
 	static JButton endButton;
 	
-    // Threads for call handling
+    /* 
+     * Threads for call handling
+     */
     private Thread captureThread;
     private Thread receiveThread;
     private TargetDataLine getsound;
@@ -108,7 +110,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 		 * 2. 
 		 */
 		do{	
-			//Receive messages
+			//Receive messages constantly in the main method
 			new Thread(new Runnable() {
 		        public void run() {
 		            try {
@@ -119,15 +121,15 @@ public class App extends Frame implements WindowListener, ActionListener {
 		                byte[] buffer = new byte[1024];
 
 		                while (true) {
-		                    // Create a DatagramPacket to receive data
 		                	
-		                    DatagramPacket new_packet = new DatagramPacket(buffer, buffer.length);
+		                    // Create a DatagramPacket to receive data
+		                    DatagramPacket receive_packet = new DatagramPacket(buffer, buffer.length);
 
 		                    // Receive the packet
-		                    receive_socket.receive(new_packet);
+		                    receive_socket.receive(receive_packet);
 
 		                    // Extract the message from the packet
-		                    String message = new String(new_packet.getData(), 0, new_packet.getLength());
+		                    String message = new String(receive_packet.getData(), 0, receive_packet.getLength());
 
 		                    // Display the received message in the textArea
 		                    textArea.append("Received: " + message + newline);
@@ -166,7 +168,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 	            // Convert the message to bytes
 	            byte[] buffer = message.getBytes();
 
-	            // Create a DatagramPacket with the message, localhost, and a port number
+	            // Create a DatagramPacket with the message, IP, and a port number
 	            InetAddress address = InetAddress.getByName("127.0.0.1");
 	            int port = 5002;
 	            DatagramPacket send_packet = new DatagramPacket(buffer, buffer.length, address, port);
@@ -190,92 +192,108 @@ public class App extends Frame implements WindowListener, ActionListener {
 		}else if(e.getSource() == callButton){
 			
 			// The "Call" button was clicked
+			
 			try {
-		        if (call_socket == null || call_socket.isClosed()) {
-		            call_socket = new DatagramSocket();
-		        }
+				// Check if the call socket is closed, and if so, initialize it
+				if (call_socket == null || call_socket.isClosed()) {
+				    call_socket = new DatagramSocket(); // Create a new DatagramSocket for sending audio packets
+				}
 
-		        AudioFormat audio_format = new AudioFormat(8000, 16, 1, true, true);
-		        DataLine.Info audio_info = new DataLine.Info(TargetDataLine.class, audio_format);
-		        DataLine.Info source_info = new DataLine.Info(SourceDataLine.class, audio_format);
+				// Create the audio format for the audio communication
+				AudioFormat audio_format = new AudioFormat(8000, 16, 1, true, true); 
+				// 8000 Hz sampling rate, 16-bit samples, 1 channel (mono), signed, big-endian
 
-		        getsound = (TargetDataLine) AudioSystem.getLine(audio_info);
-		        getsound.open(audio_format);
-		        getsound.start();
+				// Create DataLine.Info objects for the target (input) and source (output) audio lines
+				DataLine.Info audio_info = new DataLine.Info(TargetDataLine.class, audio_format);
+				DataLine.Info source_info = new DataLine.Info(SourceDataLine.class, audio_format);
 
-		        hearsound = (SourceDataLine) AudioSystem.getLine(source_info);
-		        hearsound.open(audio_format);
-		        hearsound.start();
+				// Get and configure the TargetDataLine for capturing audio from the microphone
+				getsound = (TargetDataLine) AudioSystem.getLine(audio_info);
+				getsound.open(audio_format); // Open the audio line with the specified format
+				getsound.start();
 
-		        captureThread = new Thread(() -> {
-		            try {
-		                byte[] audio_buffer = new byte[4096];
-		                InetAddress call_address = InetAddress.getByName("127.0.0.1");
-		                int port = 5001;
+				// Get and configure the SourceDataLine for playing received audio to the speaker
+				hearsound = (SourceDataLine) AudioSystem.getLine(source_info);
+				hearsound.open(audio_format); // Open the audio line with the specified format
+				hearsound.start(); // Start playback
 
-		                while (!Thread.currentThread().isInterrupted()) {
-		                    int bytes_read = getsound.read(audio_buffer, 0, audio_buffer.length);
-		                    DatagramPacket call_packet = new DatagramPacket(audio_buffer, bytes_read, call_address, port);
-		                    call_socket.send(call_packet);
-		                }
-		            } catch (Exception ex) {
-		                ex.printStackTrace();
-		            }
-		        });
+				// Thread for capturing and sending audio data
+				captureThread = new Thread(() -> {
+				    try {
+				        byte[] audio_buffer = new byte[4096]; // Buffer to store audio data
+				        InetAddress call_address = InetAddress.getByName("127.0.0.1"); // Localhost IP for testing
+				        int port = 5001; // Port number for sending audio packets
 
-		        receiveThread = new Thread(() -> {
-		            try {
-		                DatagramSocket receive_socket = new DatagramSocket(5001);
-		                byte[] receive_buffer = new byte[4096];
-		                DatagramPacket receive_packet = new DatagramPacket(receive_buffer, receive_buffer.length);
+				        while (!Thread.currentThread().isInterrupted()) {
+				            // Read audio data from the microphone into the buffer
+				            int bytes_read = getsound.read(audio_buffer, 0, audio_buffer.length);
+				            // Create a packet containing the audio data and send it via the socket
+				            DatagramPacket call_packet = new DatagramPacket(audio_buffer, bytes_read, call_address, port);
+				            call_socket.send(call_packet);
+				        }
+				    } catch (Exception ex) {
+				        ex.printStackTrace();
+				    }
+				});
 
-		                while (!Thread.currentThread().isInterrupted()) {
-		                    receive_socket.receive(receive_packet);
-		                    hearsound.write(receive_packet.getData(), 0, receive_packet.getLength());
-		                }
-		                receive_socket.close();
-		            } catch (Exception ex) {
-		                ex.printStackTrace();
-		            }
-		        });
+				// Thread for receiving and playing audio data
+				receiveThread = new Thread(() -> {
+				    try {
+				        DatagramSocket receive_socket = new DatagramSocket(5001);
+				        byte[] receive_buffer = new byte[4096];
+				        DatagramPacket receive_packet = new DatagramPacket(receive_buffer, receive_buffer.length);
 
-		        captureThread.start();
-		        receiveThread.start();
+				        while (!Thread.currentThread().isInterrupted()) {
+				            // Receive audio data packets
+				            receive_socket.receive(receive_packet);
+				            // Play the received audio data through the speaker
+				            hearsound.write(receive_packet.getData(), 0, receive_packet.getLength());
+				        }
+				        receive_socket.close(); // Close the socket when the thread is interrupted
+				    } catch (Exception ex) {
+				        ex.printStackTrace();
+				    }
+				});
 
-		        textArea.append("Call started" + newline);
+				// Start the threads for capturing and receiving audio
+				captureThread.start();
+				receiveThread.start();
 
-		    } catch (LineUnavailableException | IOException ex) {
-		        ex.printStackTrace();
-		    }
-			
-		} else if (e.getSource() == endButton) {
-	            // The "End Call" button was clicked
+				textArea.append("Call started" + newline); // Log the call start in the user interface
 
-	            try {
-	            	if (captureThread != null && captureThread.isAlive()) {
-	            	    captureThread.interrupt();
-	            	}
-	            	if (receiveThread != null && receiveThread.isAlive()) {
-	            	    receiveThread.interrupt();
-	            	}
-	            	if (getsound != null) {
-	            	    getsound.stop();
-	            	    getsound.close();
-	            	}
-	            	if (hearsound != null) {
-	            	    hearsound.stop();
-	            	    hearsound.close();
-	            	}
-	            	if (call_socket != null && !call_socket.isClosed()) {
-	            	    call_socket.close();
-	            	}
-	            	textArea.append("Call ended" + newline);
-	            } catch (Exception ex) {
-	                ex.printStackTrace();
-	            }
-	        }
-			
+				} catch (LineUnavailableException | IOException ex) {
+				    ex.printStackTrace(); // Handle exceptions related to audio line or socket initialization
+				}
+		}else if (e.getSource() == endButton) {
+				    try {
+				        // Stop the capture thread if it is running
+				        if (captureThread != null && captureThread.isAlive()) {
+				            captureThread.interrupt();
+				        }
+				        // Stop the receive thread if it is running
+				        if (receiveThread != null && receiveThread.isAlive()) {
+				            receiveThread.interrupt();
+				        }
+				        // Stop and close the audio capture line
+				        if (getsound != null) {
+				            getsound.stop();
+				            getsound.close(); 
+				        }
+				        // Stop and close the audio playback line
+				        if (hearsound != null) {
+				            hearsound.stop();
+				            hearsound.close(); 
+				        }
+				        // Close the call socket if it is open
+				        if (call_socket != null && !call_socket.isClosed()) {
+				            call_socket.close();
+				        }
+				        textArea.append("Call ended" + newline); // Log the call end in the user interface
 
+				    } catch (Exception ex) {
+				        ex.printStackTrace(); // Handle any exceptions during resource cleanup
+				    }
+				}			
 	}
 
 	/**
