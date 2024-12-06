@@ -109,12 +109,11 @@ public class App extends Frame implements WindowListener, ActionListener {
 		/*
 		 * 2. 
 		 */
-		do{	
 			//Receive messages constantly in the main method
 			new Thread(() -> {
 		            try {
 		                // Create a DatagramSocket to receive the data
-		                DatagramSocket receive_socket = new DatagramSocket(5002);
+		                DatagramSocket receive_socket = new DatagramSocket(5001);
 
 		                // Buffer to hold incoming data
 		                byte[] buffer = new byte[1024];
@@ -133,13 +132,13 @@ public class App extends Frame implements WindowListener, ActionListener {
 		                    // Display the received message in the textArea
 		                    textArea.append("Received: " + message + newline);
 		                    
-		                    receive_socket.close();
 		                }
+		                
 		            } catch (Exception ex) {
 		                ex.printStackTrace();
+		                textArea.append("Cannot receive messages");
 		            }
 		    }).start();
-		}while(true);
 	}
 	
 	/**
@@ -169,8 +168,8 @@ public class App extends Frame implements WindowListener, ActionListener {
 	            byte[] buffer = message.getBytes();
 
 	            // Create a DatagramPacket with the message, IP, and a port number
-	            InetAddress address = InetAddress.getByName("127.0.0.1");
-	            int port = 5002;
+	            InetAddress address = InetAddress.getByName("192.168.1.27");
+	            int port = 5009;
 	            DatagramPacket send_packet = new DatagramPacket(buffer, buffer.length, address, port);
 
 	            // Send the packet through the socket
@@ -186,6 +185,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 	            send_socket.close();
 	        } catch (Exception ex) {
 	            ex.printStackTrace();
+	            textArea.append("Cannot send message");
 	        }
 		
 			
@@ -221,8 +221,8 @@ public class App extends Frame implements WindowListener, ActionListener {
 				captureThread = new Thread(() -> {
 				    try {
 				        byte[] audio_buffer = new byte[4096]; // Buffer to store audio data
-				        InetAddress call_address = InetAddress.getByName("127.0.0.1"); // Localhost IP for testing
-				        int port = 5001; // Port number for sending audio packets
+				        InetAddress call_address = InetAddress.getByName("192.168.1.27"); // Localhost IP for testing
+				        int port = 5006; // Port number for sending audio packets
 
 				        while (!Thread.currentThread().isInterrupted()) {
 				            // Read audio data from the microphone into the buffer
@@ -233,13 +233,14 @@ public class App extends Frame implements WindowListener, ActionListener {
 				        }
 				    } catch (Exception ex) {
 				        ex.printStackTrace();
+				        textArea.append("Cannot start call");
 				    }
 				});
 
 				// Thread for receiving and playing audio data
 				receiveThread = new Thread(() -> {
 				    try {
-				        DatagramSocket receive_socket = new DatagramSocket(5001);
+				        DatagramSocket receive_socket = new DatagramSocket(5005);
 				        byte[] receive_buffer = new byte[4096];
 				        DatagramPacket receive_packet = new DatagramPacket(receive_buffer, receive_buffer.length);
 
@@ -252,6 +253,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 				        receive_socket.close(); // Close the socket when the thread is interrupted
 				    } catch (Exception ex) {
 				        ex.printStackTrace();
+				        textArea.append("Cannot receive call");
 				    }
 				});
 
