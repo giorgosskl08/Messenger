@@ -17,19 +17,25 @@ import java.awt.event.*;
 import java.awt.Color;
 import java.lang.Thread;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.util.Base64;
+import javax.crypto.Cipher;
+
+
 public class App extends Frame implements WindowListener, ActionListener {
 
 	/*
 	 * Definition of the app's fields
 	 */
-	static TextField inputTextField;		
-	static JTextArea textArea;				 
-	static JFrame frame;					
-	static JButton sendButton;				
-	static JTextField meesageTextField;		  
-	public static Color gray;				
-	final static String newline="\n";		
-	static JButton callButton;	
+	static TextField inputTextField;
+	static JTextArea textArea;
+	static JFrame frame;
+	static JButton sendButton;
+	static JTextField meesageTextField;
+	public static Color gray;
+	final static String newline="\n";
+	static JButton callButton;
 	static JButton endButton;
 	
     /* 
@@ -46,68 +52,68 @@ public class App extends Frame implements WindowListener, ActionListener {
 	 * Construct the app's frame and initialize important parameters
 	 */
 	public App(String title) {
-		
+
 		/*
 		 * 1. Defining the components of the GUI
 		 */
-		
+
 		// Setting up the characteristics of the frame
-		super(title);									
-		gray = new Color(254, 254, 254);		
+		super(title);
+		gray = new Color(254, 254, 254);
 		setBackground(gray);
-		setLayout(new FlowLayout());			
-		addWindowListener(this);	
-		
+		setLayout(new FlowLayout());
+		addWindowListener(this);
+
 		// Setting up the TextField and the TextArea
 		inputTextField = new TextField();
 		inputTextField.setColumns(20);
-		
+
 		// Setting up the TextArea.
-		textArea = new JTextArea(10,40);			
-		textArea.setLineWrap(true);				
-		textArea.setEditable(false);			
+		textArea = new JTextArea(10,40);
+		textArea.setLineWrap(true);
+		textArea.setEditable(false);
 		JScrollPane scrollPane = new JScrollPane(textArea);
 		scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
-		
+
 		//Setting up the buttons
-		sendButton = new JButton("Send");			
+		sendButton = new JButton("Send");
 		callButton = new JButton("Call");
 		endButton = new JButton("End Call");
-						
+
 		/*
 		 * 2. Adding the components to the GUI
 		 */
-		add(scrollPane);								
+		add(scrollPane);
 		add(inputTextField);
 		add(sendButton);
 		add(callButton);
 		add(endButton);
-		
+
 		/*
 		 * 3. Linking the buttons to the ActionListener
 		 */
-		sendButton.addActionListener(this);			
-		callButton.addActionListener(this);	
+		sendButton.addActionListener(this);
+		callButton.addActionListener(this);
 		endButton.addActionListener(this);
 
-		
+
 	}
-	
+
 	/**
 	 * The main method of the application. It continuously listens for
 	 * new messages.
 	 */
 	public static void main(String[] args){
-	
+
 		/*
 		 * 1. Create the app's window
 		 */
-		App app = new App("CN2 - AUTH");  // TODO: You can add the title that will displayed on the Window of the App here																		  
-		app.setSize(500,250);				  
-		app.setVisible(true);				  
+		App app = new App("CN2 - AUTH");  // TODO: You can add the title that will displayed on the Window of the App here
+		app.setSize(500,250);
+		app.setVisible(true);
 
 		/*
-		 * 2. 
+		 * 2.
 		 */
 			//Receive messages constantly in the main method
 			new Thread(() -> {
@@ -127,7 +133,8 @@ public class App extends Frame implements WindowListener, ActionListener {
 		                    receive_socket.receive(receive_packet);
 
 		                    // Extract the message from the packet
-		                    String message = new String(receive_packet.getData(), 0, receive_packet.getLength());
+                      String EncryptedReceived = new String(receive_packet.getData(), 0, receive_packet.getLength());
+							        String DecruptedReceived = Decryption(EncryptedReceived, SecretKeyGenerator());
 
 		                    // Display the received message in the textArea
 		                    textArea.append("Received: " + message + newline);
@@ -139,60 +146,61 @@ public class App extends Frame implements WindowListener, ActionListener {
 		                textArea.append("Cannot receive messages");
 		            }
 		    }).start();
+
 	}
-	
+
 	/**
 	 * The method that corresponds to the Action Listener. Whenever an action is performed
-	 * (i.e., one of the buttons is clicked) this method is executed. 
+	 * (i.e., one of the buttons is clicked) this method is executed.
 	 */
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		
-	
 
 		/*
 		 * Check which button was clicked.
 		 */
 		if (e.getSource() == sendButton){
-			
+
 			// The "Send" button was clicked
-			
+
 			try {
-	            // Create a DatagramSocket to send the data
-	            DatagramSocket send_socket = new DatagramSocket();
+				// Create a DatagramSocket to send the data
+				DatagramSocket send_socket = new DatagramSocket();
 
-	            // Get the message from the inputTextField
-	            String message = inputTextField.getText();
+				// Get the message from the inputTextField
+				String message = inputTextField.getText();
 
-	            // Convert the message to bytes
-	            byte[] buffer = message.getBytes();
+				String EncryptedMessage = Encryption(message, SecretKeyGenerator());
+
+				// Convert the message to bytes
+				byte[] buffer = EncryptedMessage.getBytes();
 
 	            // Create a DatagramPacket with the message, IP, and a port number
 	            InetAddress address = InetAddress.getByName("192.168.1.27");
 	            int port = 5009;
 	            DatagramPacket send_packet = new DatagramPacket(buffer, buffer.length, address, port);
 
-	            // Send the packet through the socket
-	            send_socket.send(send_packet);
 
-	            // Display the sent message in the textArea
-	            textArea.append("Sent: " + message + newline);
+				// Send the packet through the socket
+				send_socket.send(send_packet);
 
-	            // Clear the inputTextField
-	            inputTextField.setText("");
+				// Display the sent message in the textArea
+				textArea.append("Sent: " + EncryptedMessage + newline);
 
-	            // Close the socket
-	            send_socket.close();
-	        } catch (Exception ex) {
-	            ex.printStackTrace();
-	            textArea.append("Cannot send message");
-	        }
-		
-			
+				// Clear the inputTextField
+				inputTextField.setText("");
+
+				// Close the socket
+				send_socket.close();
+			} catch (Exception ex) {
+				ex.printStackTrace();
+        	            textArea.append("Cannot send message");
+			}
+
 		}else if(e.getSource() == callButton){
-			
+
 			// The "Call" button was clicked
-			
+
 			try {
 				// Check if the call socket is closed, and if so, initialize it
 				if (call_socket == null || call_socket.isClosed()) {
@@ -300,43 +308,71 @@ public class App extends Frame implements WindowListener, ActionListener {
 
 	/**
 	 * These methods have to do with the GUI. You can use them if you wish to define
-	 * what the program should do in specific scenarios (e.g., when closing the 
+	 * what the program should do in specific scenarios (e.g., when closing the
 	 * window).
 	 */
 	@Override
 	public void windowActivated(WindowEvent e) {
-		// TODO Auto-generated method stub	
+		// TODO Auto-generated method stub
 	}
 
 	@Override
 	public void windowClosed(WindowEvent e) {
-		// TODO Auto-generated method stub	
+		// TODO Auto-generated method stub
 	}
 
 	@Override
 	public void windowClosing(WindowEvent e) {
 		// TODO Auto-generated method stub
 		dispose();
-        	System.exit(0);
+		System.exit(0);
 	}
 
 	@Override
 	public void windowDeactivated(WindowEvent e) {
-		// TODO Auto-generated method stub	
+		// TODO Auto-generated method stub
 	}
 
 	@Override
 	public void windowDeiconified(WindowEvent e) {
-		// TODO Auto-generated method stub	
+		// TODO Auto-generated method stub
 	}
 
 	@Override
 	public void windowIconified(WindowEvent e) {
-		// TODO Auto-generated method stub	
+		// TODO Auto-generated method stub
 	}
 
 	@Override
 	public void windowOpened(WindowEvent e) {
-		// TODO Auto-generated method stub	
+		// TODO Auto-generated method stub
+	}
+
+	public static String Encryption(String ReceivedMessage, SecretKey key) throws Exception {
+
+		Cipher cipher = Cipher.getInstance("AES");
+		cipher.init(Cipher.ENCRYPT_MODE, key);
+		byte[] EncryptedReceived = cipher.doFinal(ReceivedMessage.getBytes());
+
+		return Base64.getEncoder().encodeToString(EncryptedReceived);
+	}
+
+	public static String Decryption(String ReceivedEncryptedMessage, SecretKey key) throws Exception {
+
+		Cipher cipher = Cipher.getInstance("AES");
+		cipher.init(Cipher.DECRYPT_MODE, key);
+		byte[] DecodedReceived = Base64.getDecoder().decode(ReceivedEncryptedMessage);
+		byte[] DecryptedReceived = cipher.doFinal(DecodedReceived);
+
+		return new String(DecryptedReceived);
+	}
+
+	public static SecretKey SecretKeyGenerator() throws Exception{
+
+		//Create a key for the AES encryption
+		byte[] keyBytes = "1234567891234567".getBytes();
+		SecretKey secretKey = new SecretKeySpec(keyBytes, "AES");
+
+		return secretKey;
 	}
 }
