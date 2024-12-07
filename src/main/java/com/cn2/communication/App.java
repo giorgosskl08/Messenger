@@ -36,8 +36,6 @@ public class App extends Frame implements WindowListener, ActionListener {
     private Thread captureThread;
     private Thread receiveThread;
     private Socket call_socket;
-    private OutputStream out;
-    private PrintWriter writer;
     private TargetDataLine getsound;
     private SourceDataLine hearsound;
 	
@@ -158,104 +156,106 @@ public class App extends Frame implements WindowListener, ActionListener {
 		           textArea.append("Error: Unable to send message\n");
 		       }
 			
-		}else if(e.getSource() == callButton){
-			
-			// The "Call" button was clicked
-			
-			int port = 5002;
-			
-			try{
-				
-				call_socket = new Socket (serverAddress, port);
-				out = call_socket.getOutputStream();
-				writer = new PrintWriter(out, true);
-				
-			    AudioFormat audio_format = new AudioFormat(8000, 16, 1, true, true); 
-			    DataLine.Info audio_info = new DataLine.Info(TargetDataLine.class, audio_format);
-			    DataLine.Info source_info = new DataLine.Info(SourceDataLine.class, audio_format);
+		}else if (e.getSource() == callButton) {
+		    
+		    int port = 5002;
 
-			    getsound = (TargetDataLine) AudioSystem.getLine(audio_info);
-			    getsound.open(audio_format);
-			    getsound.start();
+		    try {
+		        if (call_socket == null || call_socket.isClosed()) {
+		            textArea.append("Trying to connect to the server\n");
+		            call_socket = new Socket(serverAddress, port);
+		            textArea.append("Connected to the server\n");
+		        }
 
-			    hearsound = (SourceDataLine) AudioSystem.getLine(source_info);
-			    hearsound.open(audio_format);
-			    hearsound.start();
+		        InputStream in = call_socket.getInputStream();
+		        OutputStream out = call_socket.getOutputStream();
 
-			    captureThread = new Thread(() -> {
-			        try {
-			            byte[] audio_buffer = new byte[4096]; 
-			            while (!Thread.currentThread().isInterrupted()) {
-			                int bytes_read = getsound.read(audio_buffer, 0, audio_buffer.length);
-			                out.write(audio_buffer, 0, bytes_read);
-			                textArea.append("Started audio message");
-			            }
-			        } catch (Exception ex) {
-			            ex.printStackTrace();
+		        AudioFormat audio_format = new AudioFormat(8000, 16, 1, true, true);
+		        DataLine.Info audio_info = new DataLine.Info(TargetDataLine.class, audio_format);
+		        DataLine.Info source_info = new DataLine.Info(SourceDataLine.class, audio_format);
+
+		        getsound = (TargetDataLine) AudioSystem.getLine(audio_info);
+		        getsound.open(audio_format);
+		        getsound.start();
+
+		        hearsound = (SourceDataLine) AudioSystem.getLine(source_info);
+		        hearsound.open(audio_format);
+		        hearsound.start();
+
+		        captureThread = new Thread(() -> {
+		            try {
+		                byte[] audio_buffer = new byte[1024];
+		                while (!Thread.currentThread().isInterrupted()) {
+		                    int bytes_read = getsound.read(audio_buffer, 0, audio_buffer.length);
+		                    if (bytes_read > 0) {
+		                        textArea.append("Captured " + bytes_read + " bytes of audio.\n");
+		                    } else {
+		                        textArea.append("No audio captured. Possible issue with microphone.\n");
+		                    }
+		                    out.write(audio_buffer, 0, bytes_read);
+		                    textArea.append("Started audio message\n");
+		                }
+		            } catch (Exception ex) {
+		                ex.printStackTrace();
 		                textArea.append("Error in captureThread: " + ex.getMessage() + "\n");
-			        }
-			    });
+		            }
+		        });
 
-			    receiveThread = new Thread(() -> {
-			        try {
-			        	InputStream in = call_socket.getInputStream();
-			            byte[] receive_buffer = new byte[4096];
-			            int bytesRead;
-			            while (!Thread.currentThread().isInterrupted()) {
-			            	bytesRead = in.read(receive_buffer);
-			            	hearsound.write(receive_buffer, 0, bytesRead);
-			                textArea.append("Outputing audio message");
-			            }
-			        } catch (Exception ex) {
-			            ex.printStackTrace();
+		        receiveThread = new Thread(() -> {
+		            try {
+		                textArea.append("Capturing audio\n");
+		                byte[] receive_buffer = new byte[1024];
+		                int bytesRead;
+		                while (!Thread.currentThread().isInterrupted()) {
+		                    bytesRead = in.read(receive_buffer);
+		                    if (bytesRead > 0) {
+		                        textArea.append("Received " + bytesRead + " bytes of audio.\n");
+		                        hearsound.write(receive_buffer, 0, bytesRead);
+		                    }
+		                }
+		                call_socket.close();
+		            } catch (Exception ex) {
+		                ex.printStackTrace();
 		                textArea.append("Error in receiveThread: " + ex.getMessage() + "\n");
-			        }
-			    });
+		            }
+		        });
 
+		        captureThread.start();
+		        receiveThread.start();
 
-			    captureThread.start();
-			    receiveThread.start();
-			    
-			    textArea.append("Call started" + newline);
+		        textArea.append("Call started\n");
 
-			} catch (LineUnavailableException | IOException ex) {
-			    ex.printStackTrace();
+		    } catch (LineUnavailableException | IOException ex) {
+		        ex.printStackTrace();
 		        textArea.append("Error in callButton: " + ex.getMessage() + "\n");
-			}
-			
+		    }
+
 		} else if (e.getSource() == endButton) {
-	            // The "End Call" button was clicked
+		    try {
+		        if (captureThread != null && captureThread.isAlive()) {
+		            captureThread.interrupt();
+		        }
+		        if (receiveThread != null && receiveThread.isAlive()) {
+		            receiveThread.interrupt();
+		        }
+		        if (getsound != null) {
+		            getsound.stop();
+		            getsound.close();
+		        }
+		        if (hearsound != null) {
+		            hearsound.stop();
+		            hearsound.close();
+		        }
+		        if (call_socket != null && !call_socket.isClosed()) {
+		            call_socket.close();
+		        }
+		        textArea.append("Call ended\n");
 
-	            try {
-	            	// Stop the capture thread if it is running
-			        if (captureThread != null && captureThread.isAlive()) {
-			            captureThread.interrupt();
-			        }
-			        // Stop the receive thread if it is running
-			        if (receiveThread != null && receiveThread.isAlive()) {
-			            receiveThread.interrupt();
-			        }
-			        // Stop and close the audio capture line
-			        if (getsound != null) {
-			            getsound.stop();
-			            getsound.close(); 
-			        }
-			        // Stop and close the audio playback line
-			        if (hearsound != null) {
-			            hearsound.stop();
-			            hearsound.close(); 
-			        }
-			        // Close the call socket if it is open
-			        if (call_socket != null && !call_socket.isClosed()) {
-			            call_socket.close();
-			        }
-			        textArea.append("Call ended" + newline); // Log the call end in the user interface
-
-			    } catch (Exception ex) {
-	                ex.printStackTrace();
-	            }
-	        }
-			
+		    } catch (Exception ex) {
+		        ex.printStackTrace();
+		        textArea.append("Error in endButton: " + ex.getMessage() + "\n");
+		    }
+		}	
 
 	}
 
