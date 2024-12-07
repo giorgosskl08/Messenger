@@ -113,7 +113,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 			new Thread(() -> {
 		            try {
 		                // Create a DatagramSocket to receive the data
-		                DatagramSocket receive_socket = new DatagramSocket(5001);
+		                DatagramSocket receive_socket = new DatagramSocket(5009);
 
 		                // Buffer to hold incoming data
 		                byte[] buffer = new byte[1024];
@@ -131,6 +131,8 @@ public class App extends Frame implements WindowListener, ActionListener {
 
 		                    // Display the received message in the textArea
 		                    textArea.append("Received: " + message + newline);
+
+		                    receive_socket.close();
 		                    
 		                }
 		                
@@ -148,7 +150,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		
-	
+		String ip_address = "127.0.0.1";
 
 		/*
 		 * Check which button was clicked.
@@ -168,8 +170,8 @@ public class App extends Frame implements WindowListener, ActionListener {
 	            byte[] buffer = message.getBytes();
 
 	            // Create a DatagramPacket with the message, IP, and a port number
-	            InetAddress address = InetAddress.getByName("192.168.1.27");
-	            int port = 5009;
+	            InetAddress address = InetAddress.getByName(ip_address);
+	            int port = 5001;
 	            DatagramPacket send_packet = new DatagramPacket(buffer, buffer.length, address, port);
 
 	            // Send the packet through the socket
@@ -192,6 +194,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 		}else if(e.getSource() == callButton){
 			
 			// The "Call" button was clicked
+	        int port = 5002; // Port number for sending audio packets and receiving audio packets
 			
 			try {
 				// Check if the call socket is closed, and if so, initialize it
@@ -221,8 +224,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 				captureThread = new Thread(() -> {
 				    try {
 				        byte[] audio_buffer = new byte[4096]; // Buffer to store audio data
-				        InetAddress call_address = InetAddress.getByName("192.168.1.27"); // Localhost IP for testing
-				        int port = 5006; // Port number for sending audio packets
+				        InetAddress call_address = InetAddress.getByName(ip_address); // Localhost IP for testing
 
 				        while (!Thread.currentThread().isInterrupted()) {
 				            // Read audio data from the microphone into the buffer
@@ -240,7 +242,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 				// Thread for receiving and playing audio data
 				receiveThread = new Thread(() -> {
 				    try {
-				        DatagramSocket receive_socket = new DatagramSocket(5005);
+				        DatagramSocket receive_socket = new DatagramSocket(port);
 				        byte[] receive_buffer = new byte[4096];
 				        DatagramPacket receive_packet = new DatagramPacket(receive_buffer, receive_buffer.length);
 
