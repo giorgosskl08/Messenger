@@ -37,9 +37,9 @@ public class App extends Frame implements WindowListener, ActionListener {
     */
     private Thread captureThread;
     private Thread receiveThread;
+    private TargetDataLine microphone;
+    private SourceDataLine speakers;
     private Socket call_socket;
-    private TargetDataLine getsound;
-    private SourceDataLine hearsound;
 	
 	/**
 	 * Construct the app's frame and initialize important parameters
@@ -109,17 +109,26 @@ public class App extends Frame implements WindowListener, ActionListener {
 		 * 2. 
 		 */
 			new Thread(() -> {
-		        	try (ServerSocket serverSocket = new ServerSocket(5001)) {
+		        	try {
+		        		
+		        		ServerSocket serverSocket = new ServerSocket(5001);
+		        				        		
 		                while (true) {
-		                    Socket receiveSocket = serverSocket.accept();
-		                    BufferedReader reader = new BufferedReader(new InputStreamReader(receiveSocket.getInputStream()));
+		                	
+		                    Socket clientSocket = serverSocket.accept();
+		                    
+		                    
+		                    BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+	                        String clientMessage = in.readLine();
+		                    
+		                    DataInputStream dataIn = new DataInputStream(clientSocket.getInputStream());
+		                    DataOutputStream dataOut = new DataOutputStream(clientSocket.getOutputStream());
 
-		                    String receivedMessage;
-		                    while ((receivedMessage = reader.readLine()) != null) {
-		                        textArea.append("Received: " + receivedMessage + newline);
-		                    }
+		                    textArea.append("Anatoli: " + clientMessage + newline);
 
-		                    receiveSocket.close();
+		                    dataIn.close();
+		                    dataOut.close();
+
 		                }
 		            } catch (IOException ex) {
 		                ex.printStackTrace();
@@ -199,14 +208,18 @@ public class App extends Frame implements WindowListener, ActionListener {
 	}
 
 	public void sendMessage(String address, int port) {
-		try (Socket send_socket = new Socket(address, port);
-	            OutputStream out = send_socket.getOutputStream();
-	            PrintWriter writer = new PrintWriter(out, true)) {
+		try {
+			Socket sendSocket = new Socket(address, port);
+			
+			PrintWriter out = new PrintWriter(sendSocket.getOutputStream(), true);
+			
+		    String sendMessage = inputTextField.getText();
+		    out.println(sendMessage);
+		    textArea.append("Giorgos: " + sendMessage + newline);
 
-	           String message = inputTextField.getText();
-	           textArea.append("Sent: " + message + newline);
-
-	           writer.println(message); // Send the message over the TCP connection
+		    
+		    inputTextField.setText("");
+			
 
 	       } catch (IOException e1) {
 	           e1.printStackTrace();
@@ -229,19 +242,19 @@ public class App extends Frame implements WindowListener, ActionListener {
 	        DataLine.Info audio_info = new DataLine.Info(TargetDataLine.class, audio_format);
 	        DataLine.Info source_info = new DataLine.Info(SourceDataLine.class, audio_format);
 
-	        getsound = (TargetDataLine) AudioSystem.getLine(audio_info);
-	        getsound.open(audio_format);
-	        getsound.start();
+	        microphone = (TargetDataLine) AudioSystem.getLine(audio_info);
+	        microphone.open(audio_format);
+	        microphone.start();
 
-	        hearsound = (SourceDataLine) AudioSystem.getLine(source_info);
-	        hearsound.open(audio_format);
-	        hearsound.start();
+	        speakers = (SourceDataLine) AudioSystem.getLine(source_info);
+	        speakers.open(audio_format);
+	        speakers.start();
 
 	        captureThread = new Thread(() -> {
 	            try {
 	                byte[] audio_buffer = new byte[1024];
 	                while (!Thread.currentThread().isInterrupted()) {
-	                    int bytes_read = getsound.read(audio_buffer, 0, audio_buffer.length);
+	                    int bytes_read = microphone.read(audio_buffer, 0, audio_buffer.length);
 	                    if (bytes_read > 0) {
 	                        textArea.append("Captured " + bytes_read + " bytes of audio.\n");
 	                    } else {
@@ -265,7 +278,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 	                    bytesRead = in.read(receive_buffer);
 	                    if (bytesRead > 0) {
 	                        textArea.append("Received " + bytesRead + " bytes of audio.\n");
-	                        hearsound.write(receive_buffer, 0, bytesRead);
+	                        speakers.write(receive_buffer, 0, bytesRead);
 	                    }
 	                }
 	                call_socket.close();
@@ -295,13 +308,13 @@ public class App extends Frame implements WindowListener, ActionListener {
 	        if (receiveThread != null && receiveThread.isAlive()) {
 	            receiveThread.interrupt();
 	        }
-	        if (getsound != null) {
-	            getsound.stop();
-	            getsound.close();
+	        if (microphone != null) {
+	            microphone.stop();
+	            microphone.close();
 	        }
-	        if (hearsound != null) {
-	            hearsound.stop();
-	            hearsound.close();
+	        if (speakers != null) {
+	            speakers.stop();
+	            speakers.close();
 	        }
 	        if (call_socket != null && !call_socket.isClosed()) {
 	            call_socket.close();
