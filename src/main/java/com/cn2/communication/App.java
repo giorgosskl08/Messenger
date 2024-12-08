@@ -107,13 +107,13 @@ public class App extends Frame implements WindowListener, ActionListener {
 		app.setVisible(true);				  
 
 		/*
-		 * 2. 
+		 * 2. Receive messages constantly in the main method
 		 */
-			//Receive messages constantly in the main method
 			new Thread(() -> {
 		            try {
 		                // Create a DatagramSocket to receive the data
 		                DatagramSocket receive_socket = new DatagramSocket();
+		                textArea.append("Creating connection" + newline);
 
 		                // Buffer to hold incoming data
 		                byte[] buffer = new byte[1024];
@@ -122,18 +122,19 @@ public class App extends Frame implements WindowListener, ActionListener {
 		                	
 		                    // Create a DatagramPacket to receive data
 		                    DatagramPacket receive_packet = new DatagramPacket(buffer, buffer.length);
-
+		                    textArea.append("Creating received packet" + newline);
+		                    
 		                    // Receive the packet
 		                    receive_socket.receive(receive_packet);
-
+		                    textArea.append("Creating packet to display" + newline);
+		                    
 		                    // Extract the message from the packet
 		                    String message = new String(receive_packet.getData(), 0, receive_packet.getLength());
 
 		                    // Display the received message in the textArea
 		                    textArea.append("Anatoli: " + message + newline);
-
+		                 
 		                    receive_socket.close();
-		                    
 		                }
 		            } catch (Exception ex) {
 		                ex.printStackTrace();
@@ -150,8 +151,8 @@ public class App extends Frame implements WindowListener, ActionListener {
 	public void actionPerformed(ActionEvent e) {
 		
 		String ip_address = "127.0.0.1";
-		int messagePort = 5001;
-		int callPort = 5002;
+		int messagePort = 5002;
+		int callPort = 5001;
 
 		/*
 		 * Check which button was clicked.
@@ -236,13 +237,14 @@ public class App extends Frame implements WindowListener, ActionListener {
             send_socket.send(send_packet);
 
             // Display the sent message in the textArea
-            textArea.append("GIorgos: " + message + newline);
+            textArea.append("Giorgos: " + message + newline);
 
             // Clear the inputTextField
             inputTextField.setText("");
 
             // Close the socket
             send_socket.close();
+            
         } catch (Exception ex) {
             ex.printStackTrace();
             textArea.append("Cannot send message");
@@ -277,7 +279,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 			// Thread for capturing and sending audio data
 			captureThread = new Thread(() -> {
 			    try {
-			        byte[] audio_buffer = new byte[4096]; // Buffer to store audio data
+			        byte[] audio_buffer = new byte[1024]; // Buffer to store audio data
 			        InetAddress call_address = InetAddress.getByName(address); // Localhost IP for testing
 
 			        while (!Thread.currentThread().isInterrupted()) {
@@ -289,7 +291,6 @@ public class App extends Frame implements WindowListener, ActionListener {
 			        }
 			    } catch (Exception ex) {
 			        ex.printStackTrace();
-			        textArea.append("Cannot start call");
 			    }
 			});
 
@@ -297,7 +298,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 			receiveThread = new Thread(() -> {
 			    try {
 			        DatagramSocket receive_socket = new DatagramSocket(port);
-			        byte[] receive_buffer = new byte[4096];
+			        byte[] receive_buffer = new byte[1024];
 			        DatagramPacket receive_packet = new DatagramPacket(receive_buffer, receive_buffer.length);
 
 			        while (!Thread.currentThread().isInterrupted()) {
@@ -309,7 +310,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 			        receive_socket.close(); // Close the socket when the thread is interrupted
 			    } catch (Exception ex) {
 			        ex.printStackTrace();
-			        textArea.append("Cannot receive call");
+			        textArea.append("Cannot receive call" + newline);
 			    }
 			});
 
