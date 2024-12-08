@@ -112,8 +112,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 			new Thread(() -> {
 		            try {
 		                // Create a DatagramSocket to receive the data
-		                DatagramSocket receive_socket = new DatagramSocket();
-		                textArea.append("Creating connection" + newline);
+		                DatagramSocket receive_socket = new DatagramSocket(5002);
 
 		                // Buffer to hold incoming data
 		                byte[] buffer = new byte[1024];
@@ -122,19 +121,16 @@ public class App extends Frame implements WindowListener, ActionListener {
 		                	
 		                    // Create a DatagramPacket to receive data
 		                    DatagramPacket receive_packet = new DatagramPacket(buffer, buffer.length);
-		                    textArea.append("Creating received packet" + newline);
 		                    
 		                    // Receive the packet
 		                    receive_socket.receive(receive_packet);
-		                    textArea.append("Creating packet to display" + newline);
 		                    
 		                    // Extract the message from the packet
-		                    String message = new String(receive_packet.getData(), 0, receive_packet.getLength());
+		                    String receivedMessage = new String(receive_packet.getData(), 0, receive_packet.getLength());
 
 		                    // Display the received message in the textArea
-		                    textArea.append("Anatoli: " + message + newline);
+		                    textArea.append("Anatoli: " + receivedMessage + newline);
 		                 
-		                    receive_socket.close();
 		                }
 		            } catch (Exception ex) {
 		                ex.printStackTrace();
@@ -238,7 +234,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 
             // Display the sent message in the textArea
             textArea.append("Giorgos: " + message + newline);
-
+            
             // Clear the inputTextField
             inputTextField.setText("");
 
