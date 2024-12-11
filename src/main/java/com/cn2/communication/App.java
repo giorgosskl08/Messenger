@@ -112,7 +112,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 			new Thread(() -> {
 		            try {
 		                // Create a DatagramSocket to receive the data
-		                DatagramSocket receive_socket = new DatagramSocket(5002);
+		                DatagramSocket receive_socket = new DatagramSocket(5009);
 
 		                // Buffer to hold incoming data
 		                byte[] buffer = new byte[1024];
@@ -129,7 +129,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 		                    String receivedMessage = new String(receive_packet.getData(), 0, receive_packet.getLength());
 
 		                    // Display the received message in the textArea
-		                    textArea.append("Anatoli: " + receivedMessage + newline);
+		                    textArea.append("Giorgos: " + receivedMessage + newline);
 		                 
 		                }
 		            } catch (Exception ex) {
@@ -233,7 +233,7 @@ public class App extends Frame implements WindowListener, ActionListener {
             send_socket.send(send_packet);
 
             // Display the sent message in the textArea
-            textArea.append("Giorgos: " + message + newline);
+            textArea.append("Anatoli: " + message + newline);
             
             // Clear the inputTextField
             inputTextField.setText("");
