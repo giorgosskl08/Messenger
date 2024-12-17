@@ -107,7 +107,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 		/*
 		 * 1. Create the app's window
 		 */
-		App app = new App("Chat and Call over UDP");
+		App app = new App("Chat and Call over encrypted UDP");
 		app.setSize(500,250);				  
 		app.setVisible(true);				  
 
@@ -117,7 +117,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 			new Thread(() -> {
 		            try {
 		                // Create a DatagramSocket to receive the data
-		                DatagramSocket receive_socket = new DatagramSocket(5009);
+		                DatagramSocket receive_socket = new DatagramSocket(5001);
 
 		                // Buffer to hold incoming data
 		                byte[] buffer = new byte[1024];
@@ -156,7 +156,7 @@ public class App extends Frame implements WindowListener, ActionListener {
 		
 		String ip_address = "127.0.0.1";
 		int messagePort = 5002;
-		int callPort = 5001;
+		int callPort = 5003;
 
 		/*
 		 * Check which button was clicked.
@@ -400,13 +400,10 @@ public class App extends Frame implements WindowListener, ActionListener {
 
     public static SecretKey SecretKeyGenerator() throws Exception{
 
-        // Set key size for AES
-    	int keySize = 256;
+        // Set constant key for AES
+		String key = "37fjs9nd6ebmckw863555wbdjlsnwkwo";
 
-    	// Generate a secure random byte array using the SecureRandom java class
-    	byte[] keyBytes = new byte[keySize / 8];
-    	SecureRandom RandomKey = new SecureRandom();
-    	RandomKey.nextBytes(keyBytes);
+		byte [] keyBytes = key.getBytes(); //256 bits
 
    	 	// Create a SecretKey object from the random bytes
     	return new SecretKeySpec(keyBytes, "AES");
